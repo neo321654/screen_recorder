@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/screen_timer.dart';
 
 class SecondScreen extends StatelessWidget {
   const SecondScreen({super.key});
@@ -10,8 +11,10 @@ class SecondScreen extends StatelessWidget {
         title: const Text('Вторая вкладка'),
         backgroundColor: Colors.purple,
       ),
-      body: Center(
-        child: SingleChildScrollView(
+      body: Stack(
+        children: [
+          Center(
+            child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -105,7 +108,13 @@ class SecondScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
+            ),
+          ),
+          const ScreenTimer(
+            screenName: 'Вторая вкладка',
+            position: TimerPosition.topRight,
+          ),
+        ],
       ),
     );
   }

@@ -69,8 +69,17 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
       jpegQuality: 60,
       maxGifWidth: 400,
       maxGifHeight: 800,
-      skipFramesBetweenCaptures: 20,
+     // Приблизительно получается 4 кадра в секунду.
+      skipFramesBetweenCaptures: 17,
     );
+
+    // pixelRatio: 0.6,
+    // resizeRatio: 1,
+    // jpegQuality: 60,
+    // maxGifWidth: 400,
+    // maxGifHeight: 800,
+    // 3.1mb 3.11mb 3.13mb
+
     
     // Получаем размеры экрана после первого рендера
     WidgetsBinding.instance.addPostFrameCallback((_) {

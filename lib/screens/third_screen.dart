@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/screen_timer.dart';
 
 class ThirdScreen extends StatelessWidget {
   const ThirdScreen({super.key});
@@ -10,8 +11,10 @@ class ThirdScreen extends StatelessWidget {
         title: const Text('Третья вкладка'),
         backgroundColor: Colors.teal,
       ),
-      body: Center(
-        child: SingleChildScrollView(
+      body: Stack(
+        children: [
+          Center(
+            child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -118,7 +121,13 @@ class ThirdScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
+            ),
+          ),
+          const ScreenTimer(
+            screenName: 'Третья вкладка',
+            position: TimerPosition.topRight,
+          ),
+        ],
       ),
     );
   }

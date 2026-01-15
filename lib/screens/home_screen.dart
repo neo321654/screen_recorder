@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../screen_recorder_wrapper.dart';
 import '../sample_animation.dart';
 import '../app_state.dart';
+import '../widgets/screen_timer.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -16,8 +17,10 @@ class HomeScreen extends StatelessWidget {
             title: const Text('Главная'),
             backgroundColor: Colors.blue,
           ),
-          body: Center(
-            child: SingleChildScrollView(
+          body: Stack(
+            children: [
+              Center(
+                child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -163,7 +166,13 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
+                ),
+              ),
+              const ScreenTimer(
+                screenName: 'Главная',
+                position: TimerPosition.topRight,
+              ),
+            ],
           ),
         );
       },

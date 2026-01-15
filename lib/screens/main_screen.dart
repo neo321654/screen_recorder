@@ -13,25 +13,34 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const SecondScreen(),
-    const ThirdScreen(),
+  // Используем ключи для пересоздания экранов при переключении
+  // Это позволяет таймерам сбрасываться при каждом показе экрана
+  final List<GlobalKey> _screenKeys = [
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+  ];
+
+  List<Widget> get _screens => [
+    HomeScreen(key: _screenKeys[0]),
+    SecondScreen(key: _screenKeys[1]),
+    ThirdScreen(key: _screenKeys[2]),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          if (index != _currentIndex) {
+            // Пересоздаем экран при переключении для сброса таймера
+            _screenKeys[index] = GlobalKey();
+            setState(() {
+              _currentIndex = index;
+            });
+          }
         },
         items: const [
           BottomNavigationBarItem(
