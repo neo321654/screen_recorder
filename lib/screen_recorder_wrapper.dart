@@ -57,9 +57,19 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
   @override
   void initState() {
     super.initState();
+    // _controller = ScreenRecorderController(
+    //
+    //   pixelRatio: widget.pixelRatio,
+    //   skipFramesBetweenCaptures: widget.skipFramesBetweenCaptures,
+    // );
+
     _controller = ScreenRecorderController(
-      pixelRatio: widget.pixelRatio,
-      skipFramesBetweenCaptures: widget.skipFramesBetweenCaptures,
+      pixelRatio: 0.6,
+      resizeRatio: 1,
+      jpegQuality: 60,
+      maxGifWidth: 400,
+      maxGifHeight: 800,
+      skipFramesBetweenCaptures: 20,
     );
     
     // Получаем размеры экрана после первого рендера

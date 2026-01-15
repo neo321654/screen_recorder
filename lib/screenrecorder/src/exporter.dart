@@ -4,62 +4,53 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as image;
 import 'frame.dart';
 
-/// Сжатый кадр с JPEG данными тест kk
-class CompressedFrame {
-  CompressedFrame(
-    this.timeStamp,
-    this.jpegBytes,
-    this.originalWidth,
-    this.originalHeight,
-    this.compressedWidth,
-    this.compressedHeight,
-  );
-
-  final Duration timeStamp;
-  final Uint8List jpegBytes;
-  final int originalWidth;
-  final int originalHeight;
-  final int compressedWidth;
-  final int compressedHeight;
-}
-
+/// Оптимизированный экспортер с агрессивным сжатием для уменьшения размера файла
 class Exporter {
   Exporter({
-    this.resizeRatio = 0.5,
-    this.jpegQuality = 75,
+    this.resizeRatio = 0.35,
+    this.jpegQuality = 60,
+    this.maxGifWidth = 360,
+    this.maxGifHeight = 640,
   });
 
+  /// Сжатые кадры хранятся как JPEG для экономии памяти
   final List<CompressedFrame> _compressedFrames = [];
   int _maxWidthFrame = 0;
   int _maxHeightFrame = 0;
 
-  // Для обратной совместимости - возвращаем пустой список
-  // так как теперь используем CompressedFrame
+  /// Коэффициент ресайза при захвате (по умолчанию 40% для минимального размера)
+  final double resizeRatio;
+
+  /// Качество JPEG сжатия (по умолчанию 65 для минимального размера)
+  final int jpegQuality;
+
+  /// Максимальная ширина GIF (дополнительное ограничение размера)
+  final int? maxGifWidth;
+
+  /// Максимальная высота GIF (дополнительное ограничение размера)
+  final int? maxGifHeight;
+
   List<Frame> get frames => [];
 
   /// Количество сжатых кадров
   int get frameCount => _compressedFrames.length;
 
-  /// Временная метка первого кадра (для расчета длительности)
+  /// Временная метка первого кадра
   Duration? get firstFrameTimeStamp => 
       _compressedFrames.isNotEmpty ? _compressedFrames.first.timeStamp : null;
 
-  /// Временная метка последнего кадра (для расчета длительности)
+  /// Временная метка последнего кадра
   Duration? get lastFrameTimeStamp => 
       _compressedFrames.isNotEmpty ? _compressedFrames.last.timeStamp : null;
 
-  /// Коэффициент ресайза (по умолчанию 50% от оригинала для меньшего размера)
-  /// Значение от 0.3 до 1.0. Меньше значение = меньше размер файла, но ниже качество
-  final double resizeRatio;
-
-  /// Качество JPEG (по умолчанию 75% для меньшего размера)
-  /// Значение от 1 до 100. Меньше значение = меньше размер файла, но ниже качество
-  final int jpegQuality;
-
   /// Обрабатывает новый кадр: сжимает его сразу после захвата
-  /// Реализует комбинированный подход: ресайз + JPEG сжатие
+  /// Оптимизированная версия с агрессивным сжатием
   Future<void> onNewFrame(Frame frame) async {
     try {
+      // Сохраняем оригинальные размеры до обработки
+      final originalWidth = frame.image.width;
+      final originalHeight = frame.image.height;
+
       // Конвертируем ui.Image в PNG байты
       final pngBytes = await frame.image.toByteData(
         format: ui.ImageByteFormat.png,
@@ -81,27 +72,31 @@ class Exporter {
         return;
       }
 
-      // Сохраняем оригинальные размеры
-      final originalWidth = decodedImage.width;
-      final originalHeight = decodedImage.height;
+      // Вычисляем целевой размер с учетом ограничений GIF
+      int targetWidth = (originalWidth * resizeRatio).round();
+      int targetHeight = (originalHeight * resizeRatio).round();
 
-      // Обновляем максимальные размеры для экспорта
-      if (originalWidth >= _maxWidthFrame) {
-        _maxWidthFrame = originalWidth;
+      // Применяем дополнительные ограничения размера для GIF
+      if (maxGifWidth != null && targetWidth > maxGifWidth!) {
+        final scale = maxGifWidth! / targetWidth;
+        targetWidth = maxGifWidth!;
+        targetHeight = (targetHeight * scale).round();
       }
-      if (originalHeight >= _maxHeightFrame) {
-        _maxHeightFrame = originalHeight;
+      if (maxGifHeight != null && targetHeight > maxGifHeight!) {
+        final scale = maxGifHeight! / targetHeight;
+        targetHeight = maxGifHeight!;
+        targetWidth = (targetWidth * scale).round();
       }
 
-      // 1. РЕСАЙЗ до указанного процента от оригинала
+      // Ресайз до целевого размера
       final resizedImage = image.copyResize(
         decodedImage,
-        width: (originalWidth * resizeRatio).round(),
-        height: (originalHeight * resizeRatio).round(),
-        interpolation: image.Interpolation.cubic, // Лучшее качество при ресайзе
+        width: targetWidth,
+        height: targetHeight,
+        interpolation: image.Interpolation.linear, // Быстрее чем cubic, но все еще хорошо
       );
 
-      // 2. СЖАТИЕ JPEG с указанным качеством
+      // Сжимаем в JPEG
       final jpegBytes = image.encodeJpg(resizedImage, quality: jpegQuality);
 
       // Сохраняем сжатый кадр
@@ -114,18 +109,16 @@ class Exporter {
         resizedImage.height,
       ));
 
-      // Освобождаем память от оригинального ui.Image
+      // Освобождаем память немедленно
       frame.image.dispose();
 
       debugPrint(
-        '[Exporter] Frame compressed: ${originalWidth}x$originalHeight -> '
+        '[Exporter] Frame: ${originalWidth}x$originalHeight -> '
         '${resizedImage.width}x${resizedImage.height}, '
-        'JPEG size: ${(jpegBytes.length / 1024).toStringAsFixed(2)} KB',
+        'Size: ${(jpegBytes.length / 1024).toStringAsFixed(1)} KB',
       );
-    } catch (e, stackTrace) {
-      debugPrint('[Exporter] Error compressing frame: $e');
-      debugPrint('[Exporter] Stack trace: $stackTrace');
-      // Освобождаем память даже при ошибке
+    } catch (e) {
+      debugPrint('[Exporter] Error: $e');
       frame.image.dispose();
     }
   }
@@ -142,11 +135,28 @@ class Exporter {
     if (_compressedFrames.isEmpty) {
       return null;
     }
+    
     final bytesImages = <RawFrame>[];
     
+    // Находим максимальные размеры среди сжатых кадров
+    int maxWidth = 0;
+    int maxHeight = 0;
+    for (final compressedFrame in _compressedFrames) {
+      if (compressedFrame.compressedWidth > maxWidth) {
+        maxWidth = compressedFrame.compressedWidth;
+      }
+      if (compressedFrame.compressedHeight > maxHeight) {
+        maxHeight = compressedFrame.compressedHeight;
+      }
+    }
+    
+    _maxWidthFrame = maxWidth;
+    _maxHeightFrame = maxHeight;
+    
+    // Конвертируем сжатые кадры обратно в PNG для GIF
     for (final compressedFrame in _compressedFrames) {
       try {
-        // Декодируем JPEG обратно в изображение
+        // Декодируем JPEG
         final decodedImage = image.decodeJpg(compressedFrame.jpegBytes);
         
         if (decodedImage == null) {
@@ -154,26 +164,9 @@ class Exporter {
           continue;
         }
 
-        // Конвертируем обратно в PNG для GIF (GIF нужен RGBA формат)
-        // Расширяем до оригинального размера, если нужно
-        image.Image finalImage;
-        if (decodedImage.width != compressedFrame.originalWidth ||
-            decodedImage.height != compressedFrame.originalHeight) {
-          // Расширяем до оригинального размера для консистентности
-          finalImage = image.copyExpandCanvas(
-            decodedImage,
-            newWidth: compressedFrame.originalWidth,
-            newHeight: compressedFrame.originalHeight,
-            toImage: image.Image(
-              width: compressedFrame.originalWidth,
-              height: compressedFrame.originalHeight,
-              format: decodedImage.format,
-              numChannels: 4,
-            ),
-          );
-        } else {
-          finalImage = decodedImage;
-        }
+        // Используем сжатый размер, не расширяем обратно!
+        // Это ключевая оптимизация - используем уже уменьшенные размеры
+        image.Image finalImage = decodedImage;
 
         // Кодируем в PNG для RawFrame
         final pngBytes = image.encodePng(finalImage);
@@ -181,7 +174,7 @@ class Exporter {
         
         bytesImages.add(RawFrame(16, byteData));
       } catch (e) {
-        debugPrint('[Exporter] Error processing compressed frame: $e');
+        debugPrint('[Exporter] Error processing frame: $e');
         continue;
       }
     }
@@ -234,28 +227,20 @@ class Exporter {
         finalImage = decodedImage;
       }
       
-      mainImage.frames.add(_encodeGifWIthTransparency(finalImage));
+      // Применяем оптимизацию для GIF
+      mainImage.frames.add(_encodeGifWithOptimization(finalImage));
     }
 
     return image.encodeGif(mainImage);
   }
 
-  static image.PaletteUint8 _convertPalette(image.Palette palette) {
-    final newPalette = image.PaletteUint8(palette.numColors, 4);
-    for (var i = 0; i < palette.numColors; i++) {
-      newPalette.setRgba(
-          i, palette.getRed(i), palette.getGreen(i), palette.getBlue(i), 255);
-    }
-    return newPalette;
-  }
+  /// Оптимизированное кодирование GIF с агрессивной квантовкой
+  static image.Image _encodeGifWithOptimization(image.Image srcImage,
+      {int transparencyThreshold = 1, int maxColors = 128}) {
+    // Используем более агрессивную квантовку для меньшего размера
+    final newImage = image.quantize(srcImage, numberOfColors: maxColors);
 
-  static image.Image _encodeGifWIthTransparency(image.Image srcImage,
-      {int transparencyThreshold = 1}) {
-    final newImage = image.quantize(srcImage);
-
-    // GifEncoder will use palette colors with a 0 alpha as transparent. Look at the pixels
-    // of the original image and set the alpha of the palette color to 0 if the pixel is below
-    // a transparency threshold.
+    // Обрабатываем прозрачность
     final numFrames = srcImage.frames.length;
     for (var frameIndex = 0; frameIndex < numFrames; frameIndex++) {
       final srcFrame = srcImage.frames[frameIndex];
@@ -266,8 +251,7 @@ class Exporter {
       for (final srcPixel in srcFrame) {
         if (srcPixel.a < transparencyThreshold) {
           final newPixel = newFrame.getPixel(srcPixel.x, srcPixel.y);
-          palette.setAlpha(
-              newPixel.index.toInt(), 0); // Set the palette color alpha to 0
+          palette.setAlpha(newPixel.index.toInt(), 0);
         }
       }
 
@@ -276,6 +260,34 @@ class Exporter {
 
     return newImage;
   }
+
+  static image.PaletteUint8 _convertPalette(image.Palette palette) {
+    final newPalette = image.PaletteUint8(palette.numColors, 4);
+    for (var i = 0; i < palette.numColors; i++) {
+      newPalette.setRgba(
+          i, palette.getRed(i), palette.getGreen(i), palette.getBlue(i), 255);
+    }
+    return newPalette;
+  }
+}
+
+/// Сжатый кадр с JPEG данными
+class CompressedFrame {
+  CompressedFrame(
+    this.timeStamp,
+    this.jpegBytes,
+    this.originalWidth,
+    this.originalHeight,
+    this.compressedWidth,
+    this.compressedHeight,
+  );
+
+  final Duration timeStamp;
+  final Uint8List jpegBytes;
+  final int originalWidth;
+  final int originalHeight;
+  final int compressedWidth;
+  final int compressedHeight;
 }
 
 class RawFrame {
@@ -289,7 +301,6 @@ class DataHolder {
   DataHolder(this.frames, this.width, this.height);
 
   List<RawFrame> frames;
-
   int width;
   int height;
 }

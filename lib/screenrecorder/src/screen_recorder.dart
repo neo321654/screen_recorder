@@ -9,16 +9,20 @@ import 'frame.dart';
 class ScreenRecorderController {
   ScreenRecorderController({
     Exporter? exporter,
-    this.pixelRatio = 0.3,
+    this.pixelRatio = 0.25,
     this.skipFramesBetweenCaptures = 2,
     SchedulerBinding? binding,
     double? resizeRatio,
     int? jpegQuality,
+    int? maxGifWidth,
+    int? maxGifHeight,
   })  : _containerKey = GlobalKey(),
         _binding = binding ?? SchedulerBinding.instance,
         _exporter = exporter ?? Exporter(
-          resizeRatio: resizeRatio ?? 0.5,
-          jpegQuality: jpegQuality ?? 75,
+          resizeRatio: resizeRatio ?? 0.35,
+          jpegQuality: jpegQuality ?? 60,
+          maxGifWidth: maxGifWidth,
+          maxGifHeight: maxGifHeight,
         );
 
   final GlobalKey _containerKey;
