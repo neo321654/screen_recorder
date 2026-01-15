@@ -117,7 +117,7 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
     }
 
     debugPrint('[ScreenRecorderWrapper] Stopping recording...');
-    debugPrint('[ScreenRecorderWrapper] Frames captured: ${_controller.exporter.frames.length}');
+    debugPrint('[ScreenRecorderWrapper] Frames captured: ${_controller.exporter.frameCount}');
     
     _controller.stop();
     
@@ -175,11 +175,13 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
       final fileSizeFormatted = _formatFileSize(fileSizeInBytes);
       
       // Вычисляем длительность записи
-      final frames = _controller.exporter.frames;
+      final exporter = _controller.exporter;
       Duration recordingDuration = Duration.zero;
-      if (frames.isNotEmpty) {
-        final firstFrameTime = frames.first.timeStamp;
-        final lastFrameTime = frames.last.timeStamp;
+      
+      final firstFrameTime = exporter.firstFrameTimeStamp;
+      final lastFrameTime = exporter.lastFrameTimeStamp;
+      
+      if (firstFrameTime != null && lastFrameTime != null) {
         recordingDuration = lastFrameTime - firstFrameTime;
         
         // Если длительность слишком мала, используем количество кадров для оценки
@@ -187,7 +189,7 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
           // Оцениваем на основе количества кадров и skipFramesBetweenCaptures
           const flutterFps = 60.0;
           final framesPerSecond = flutterFps / (widget.skipFramesBetweenCaptures + 1);
-          final estimatedSeconds = frames.length / framesPerSecond;
+          final estimatedSeconds = exporter.frameCount / framesPerSecond;
           recordingDuration = Duration(milliseconds: (estimatedSeconds * 1000).round());
         }
       }

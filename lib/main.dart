@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
           // чтобы запись продолжалась при переходах между экранами
           return ScreenRecorderWrapper(
             pixelRatio: 1,
-            skipFramesBetweenCaptures: 60,
+            skipFramesBetweenCaptures: 10,
             onFileSaved: (filePath, fileSize, duration, estimatedSizePerMinute) {
               // Обновляем состояние приложения
               Provider.of<AppState>(context, listen: false).updateFileInfo(
