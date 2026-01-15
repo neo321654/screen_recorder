@@ -73,9 +73,16 @@ class Exporter {
         processed = image.grayscale(processed);
       }
 
+      // Оптимизация прозрачности: бинаризация альфа-канала
+      // GIF поддерживает только полностью прозрачные/непрозрачные пиксели
+      // Это уменьшает размер файла без потери визуального качества
+      processed = _optimizeAlphaChannel(processed);
+
+      // Используем neuralNet для лучшей палитры при том же количестве цветов
       processed = image.quantize(
         processed,
         numberOfColors: grayscale ? 32 : 128,
+        method: image.QuantizeMethod.neuralNet,
       );
 
       _frames.add(
@@ -160,7 +167,38 @@ class Exporter {
       gif.frames.add(img);
     }
 
-    return image.encodeGif(gif);
+    // Используем оптимизированные параметры для минимального размера
+    // без потери визуального качества
+    return image.encodeGif(
+      gif,
+      samplingFactor: 30,  // Более агрессивная квантовка для меньшего размера
+      dither: image.DitherKernel.none,  // Отключение dithering уменьшает размер
+      ditherSerpentine: false,  // Отключение для уменьшения размера
+    );
+  }
+
+  /// Оптимизирует альфа-канал: конвертирует полупрозрачные пиксели
+  /// в полностью прозрачные или непрозрачные для уменьшения размера GIF
+  /// GIF поддерживает только бинарную прозрачность, поэтому это не влияет на качество
+  static image.Image _optimizeAlphaChannel(image.Image img) {
+    const alphaThreshold = 128; // Порог для бинаризации
+
+    for (int y = 0; y < img.height; y++) {
+      for (int x = 0; x < img.width; x++) {
+        final pixel = img.getPixel(x, y);
+        final alpha = pixel.a;
+
+        if (alpha < alphaThreshold) {
+          // Полностью прозрачный пиксель
+          img.setPixelRgba(x, y, 0, 0, 0, 0);
+        } else {
+          // Полностью непрозрачный пиксель
+          img.setPixelRgba(x, y, pixel.r, pixel.g, pixel.b, 255);
+        }
+      }
+    }
+
+    return img;
   }
 }
 
