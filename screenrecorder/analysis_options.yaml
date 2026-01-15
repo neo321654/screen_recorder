@@ -1,0 +1,16 @@
+include: package:flutter_lints/flutter.yaml
+analyzer:
+  errors:
+    missing_required_param: error
+    missing_return: error
+    todo: ignore
+
+linter:
+  rules:
+    one_member_abstracts: false
+    prefer_relative_imports: true
+    always_use_package_imports: false
+    omit_local_variable_types: false
+    directives_ordering: true
+    eol_at_end_of_file: true
+    
