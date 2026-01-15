@@ -99,7 +99,7 @@ class ScreenRecorderController {
   ui.Image? capture() {
     final renderObject = _containerKey.currentContext!.findRenderObject()
         as RenderRepaintBoundary;
-
+//todo  maby await Image
     return renderObject.toImageSync(pixelRatio: pixelRatio);
   }
 }
