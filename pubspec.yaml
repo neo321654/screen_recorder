@@ -1,4 +1,4 @@
-name: screen_recorder
+name: screen_recorder_app
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -34,6 +34,20 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  
+  # Local package dependency
+  screen_recorder:
+    path: screenrecorder
+  
+  # For file operations
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  
+  # For navigation
+  go_router: ^14.0.0
+  
+  # For state management
+  provider: ^6.1.1
 
 dev_dependencies:
   flutter_test:
