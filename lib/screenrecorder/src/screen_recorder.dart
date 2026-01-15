@@ -9,12 +9,17 @@ import 'frame.dart';
 class ScreenRecorderController {
   ScreenRecorderController({
     Exporter? exporter,
-    this.pixelRatio = 0.5,
+    this.pixelRatio = 0.3,
     this.skipFramesBetweenCaptures = 2,
     SchedulerBinding? binding,
+    double? resizeRatio,
+    int? jpegQuality,
   })  : _containerKey = GlobalKey(),
         _binding = binding ?? SchedulerBinding.instance,
-        _exporter = exporter ?? Exporter();
+        _exporter = exporter ?? Exporter(
+          resizeRatio: resizeRatio ?? 0.5,
+          jpegQuality: jpegQuality ?? 75,
+        );
 
   final GlobalKey _containerKey;
   final SchedulerBinding _binding;
@@ -24,8 +29,10 @@ class ScreenRecorderController {
 
   /// The pixelRatio describes the scale between the logical pixels and the size
   /// of the output image. Specifying 1.0 will give you a 1:1 mapping between
-  /// logical pixels and the output pixels in the image. The default is a pixel
-  /// ration of 3 and a value below 1 is not recommended.
+  /// logical pixels and the output pixels in the image. 
+  /// 
+  /// По умолчанию 0.3 для оптимизации размера файла (меньше значение = меньше размер).
+  /// Рекомендуемые значения: 0.3-0.5 для минимального размера, 0.5-0.7 для баланса.
   ///
   /// See [RenderRepaintBoundary](https://api.flutter.dev/flutter/rendering/RenderRepaintBoundary/toImage.html)
   /// for the underlying implementation.

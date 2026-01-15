@@ -24,6 +24,11 @@ class CompressedFrame {
 }
 
 class Exporter {
+  Exporter({
+    this.resizeRatio = 0.5,
+    this.jpegQuality = 75,
+  });
+
   final List<CompressedFrame> _compressedFrames = [];
   int _maxWidthFrame = 0;
   int _maxHeightFrame = 0;
@@ -43,14 +48,16 @@ class Exporter {
   Duration? get lastFrameTimeStamp => 
       _compressedFrames.isNotEmpty ? _compressedFrames.last.timeStamp : null;
 
-  /// Коэффициент ресайза (70% от оригинала)
-  static const double _resizeRatio = 0.7;
+  /// Коэффициент ресайза (по умолчанию 50% от оригинала для меньшего размера)
+  /// Значение от 0.3 до 1.0. Меньше значение = меньше размер файла, но ниже качество
+  final double resizeRatio;
 
-  /// Качество JPEG (88%)
-  static const int _jpegQuality = 88;
+  /// Качество JPEG (по умолчанию 75% для меньшего размера)
+  /// Значение от 1 до 100. Меньше значение = меньше размер файла, но ниже качество
+  final int jpegQuality;
 
   /// Обрабатывает новый кадр: сжимает его сразу после захвата
-  /// Реализует комбинированный подход: ресайз 70% + JPEG 88%
+  /// Реализует комбинированный подход: ресайз + JPEG сжатие
   Future<void> onNewFrame(Frame frame) async {
     try {
       // Конвертируем ui.Image в PNG байты
@@ -86,16 +93,16 @@ class Exporter {
         _maxHeightFrame = originalHeight;
       }
 
-      // 1. РЕСАЙЗ до 70% от оригинала
+      // 1. РЕСАЙЗ до указанного процента от оригинала
       final resizedImage = image.copyResize(
         decodedImage,
-        width: (originalWidth * _resizeRatio).round(),
-        height: (originalHeight * _resizeRatio).round(),
+        width: (originalWidth * resizeRatio).round(),
+        height: (originalHeight * resizeRatio).round(),
         interpolation: image.Interpolation.cubic, // Лучшее качество при ресайзе
       );
 
-      // 2. СЖАТИЕ JPEG с качеством 88%
-      final jpegBytes = image.encodeJpg(resizedImage, quality: _jpegQuality);
+      // 2. СЖАТИЕ JPEG с указанным качеством
+      final jpegBytes = image.encodeJpg(resizedImage, quality: jpegQuality);
 
       // Сохраняем сжатый кадр
       _compressedFrames.add(CompressedFrame(
