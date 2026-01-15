@@ -36,8 +36,8 @@ class ScreenRecorderWrapper extends StatefulWidget {
   final VoidCallback? onRecordingStopped;
 
   /// Callback при успешном сохранении файла
-  /// Передает путь к файлу и размер файла
-  final void Function(String filePath, String fileSize)? onFileSaved;
+  /// Передает путь к файлу, размер файла, длительность записи и расчет размера для одной минуты
+  final void Function(String filePath, String fileSize, Duration duration, String estimatedSizePerMinute)? onFileSaved;
 
   /// Callback при ошибке
   final void Function(String error)? onError;
@@ -174,10 +174,36 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
       final fileSizeInBytes = await file.length();
       final fileSizeFormatted = _formatFileSize(fileSizeInBytes);
       
+      // Вычисляем длительность записи
+      final frames = _controller.exporter.frames;
+      Duration recordingDuration = Duration.zero;
+      if (frames.isNotEmpty) {
+        final firstFrameTime = frames.first.timeStamp;
+        final lastFrameTime = frames.last.timeStamp;
+        recordingDuration = lastFrameTime - firstFrameTime;
+        
+        // Если длительность слишком мала, используем количество кадров для оценки
+        if (recordingDuration.inMilliseconds < 100) {
+          // Оцениваем на основе количества кадров и skipFramesBetweenCaptures
+          const flutterFps = 60.0;
+          final framesPerSecond = flutterFps / (widget.skipFramesBetweenCaptures + 1);
+          final estimatedSeconds = frames.length / framesPerSecond;
+          recordingDuration = Duration(milliseconds: (estimatedSeconds * 1000).round());
+        }
+      }
+      
+      // Рассчитываем размер для одной минуты на основе реальных данных
+      final estimatedSizePerMinute = _calculateEstimatedSizePerMinuteFromActual(
+        fileSizeInBytes,
+        recordingDuration,
+      );
+      
       debugPrint('[ScreenRecorderWrapper] File saved: $fileSizeFormatted');
+      debugPrint('[ScreenRecorderWrapper] Recording duration: ${recordingDuration.inMilliseconds}ms');
+      debugPrint('[ScreenRecorderWrapper] Estimated size per minute: $estimatedSizePerMinute');
 
       // Вызываем callback
-      widget.onFileSaved?.call(filePath, fileSizeFormatted);
+      widget.onFileSaved?.call(filePath, fileSizeFormatted, recordingDuration, estimatedSizePerMinute);
       
     } catch (e, stackTrace) {
       final error = 'Ошибка при сохранении: $e';
@@ -213,6 +239,35 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
       return '${(bytes / 1024).toStringAsFixed(2)} KB';
     } else {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    }
+  }
+
+  /// Рассчитывает размер для одной минуты на основе реальных данных записи
+  String _calculateEstimatedSizePerMinuteFromActual(int actualFileSizeBytes, Duration actualDuration) {
+    try {
+      if (actualDuration.inMilliseconds == 0) {
+        return 'Не удалось вычислить';
+      }
+      
+      // Конвертируем длительность в секунды
+      final durationInSeconds = actualDuration.inMilliseconds / 1000.0;
+      
+      // Рассчитываем размер в секунду
+      final bytesPerSecond = actualFileSizeBytes / durationInSeconds;
+      
+      // Рассчитываем размер для одной минуты
+      final bytesPerMinute = (bytesPerSecond * 60).round();
+      
+      debugPrint('[ScreenRecorderWrapper] Size calculation from actual data:');
+      debugPrint('  Actual file size: ${_formatFileSize(actualFileSizeBytes)}');
+      debugPrint('  Actual duration: ${durationInSeconds.toStringAsFixed(2)}s');
+      debugPrint('  Bytes per second: ${bytesPerSecond.toStringAsFixed(0)}');
+      debugPrint('  Estimated size per minute: ${_formatFileSize(bytesPerMinute)}');
+      
+      return _formatFileSize(bytesPerMinute);
+    } catch (e) {
+      debugPrint('[ScreenRecorderWrapper] ERROR calculating estimated size: $e');
+      return 'Не удалось вычислить';
     }
   }
 

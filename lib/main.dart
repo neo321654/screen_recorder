@@ -31,6 +31,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String? _savedFilePath;
   String? _fileSize;
+  Duration? _recordingDuration;
+  String? _estimatedSizePerMinute;
   bool _showFileInfo = false;
 
   @override
@@ -41,10 +43,12 @@ class _MyHomePageState extends State<MyHomePage> {
       pixelRatio: 1,
       skipFramesBetweenCaptures: 60,
 
-      onFileSaved: (filePath, fileSize) {
+      onFileSaved: (filePath, fileSize, duration, estimatedSizePerMinute) {
         setState(() {
           _savedFilePath = filePath;
           _fileSize = fileSize;
+          _recordingDuration = duration;
+          _estimatedSizePerMinute = estimatedSizePerMinute;
           _showFileInfo = true;
         });
       },
@@ -113,6 +117,22 @@ class _MyHomePageState extends State<MyHomePage> {
                           value: _fileSize!,
                           icon: Icons.storage,
                         ),
+                        if (_recordingDuration != null) ...[
+                          const SizedBox(height: 8),
+                          _InfoRow(
+                            label: 'Длительность записи:',
+                            value: _formatDuration(_recordingDuration!),
+                            icon: Icons.timer,
+                          ),
+                        ],
+                        if (_estimatedSizePerMinute != null) ...[
+                          const SizedBox(height: 8),
+                          _InfoRow(
+                            label: 'Приблизительный размер за 1 минуту:',
+                            value: _estimatedSizePerMinute!,
+                            icon: Icons.calculate,
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         _InfoRow(
                           label: 'Расположение:',
@@ -129,6 +149,21 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    final seconds = duration.inSeconds;
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    final milliseconds = duration.inMilliseconds % 1000;
+    
+    if (minutes > 0) {
+      return '$minutesм $remainingSecondsс $millisecondsмс';
+    } else if (remainingSeconds > 0) {
+      return '$remainingSecondsс $millisecondsмс';
+    } else {
+      return '$millisecondsмс';
+    }
   }
 }
 
@@ -173,3 +208,4 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
+
