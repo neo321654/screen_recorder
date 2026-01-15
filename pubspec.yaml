@@ -36,8 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   
   # Local package dependency
-  screen_recorder:
-    path: screenrecorder
+#  screen_recorder:
+#    path: screenrecorder
   
   # For file operations
   path_provider: ^2.1.1
@@ -48,6 +48,7 @@ dependencies:
   
   # For state management
   provider: ^6.1.1
+  image: ^4.7.2
 
 dev_dependencies:
   flutter_test:

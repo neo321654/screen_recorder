@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import 'package:screen_recorder/screen_recorder.dart';
+import '/screenrecorder/src/screen_recorder.dart';
 
 /// Виджет-обертка для записи экрана
 /// Оборачивает child виджет и предоставляет функционал записи всего экрана
