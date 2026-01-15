@@ -13,16 +13,18 @@ class ScreenRecorderController {
     this.skipFramesBetweenCaptures = 2,
     SchedulerBinding? binding,
     double? resizeRatio,
-    int? jpegQuality,
     int? maxGifWidth,
     int? maxGifHeight,
+    bool? grayscale,
+    int? targetFps,
   })  : _containerKey = GlobalKey(),
         _binding = binding ?? SchedulerBinding.instance,
         _exporter = exporter ?? Exporter(
-          resizeRatio: resizeRatio ?? 0.35,
-          jpegQuality: jpegQuality ?? 60,
+          resizeRatio: resizeRatio ?? 0.3,
           maxGifWidth: maxGifWidth,
           maxGifHeight: maxGifHeight,
+          grayscale: grayscale ?? false,
+          targetFps: targetFps ?? 10,
         );
 
   final GlobalKey _containerKey;

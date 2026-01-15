@@ -66,16 +66,16 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
     _controller = ScreenRecorderController(
       pixelRatio: 0.6,
       resizeRatio: 1,
-      jpegQuality: 60,
       maxGifWidth: 400,
       maxGifHeight: 800,
-     // Приблизительно получается 4 кадра в секунду.
+      grayscale: false,
+      targetFps: 10,
+      // Приблизительно получается 4 кадра в секунду.
       skipFramesBetweenCaptures: 17,
     );
 
     // pixelRatio: 0.6,
     // resizeRatio: 1,
-    // jpegQuality: 60,
     // maxGifWidth: 400,
     // maxGifHeight: 800,
     // 3.1mb 3.11mb 3.13mb
