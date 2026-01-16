@@ -1,10 +1,11 @@
-import 'dart:ui' as ui show ImageByteFormat;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as image;
+import 'raw_rgba_exporter.dart';
 import 'frame.dart';
 
-/// Агрессивно оптимизированный экспортер GIF
+/// Экспортер для raw RGBA формата с бинарным сохранением
+/// Заменяет старый GIF экспортер на новый бинарный формат
 class Exporter {
   Exporter({
     this.resizeRatio = 0.3,
@@ -12,6 +13,7 @@ class Exporter {
     this.maxGifHeight = 640,
     this.grayscale = false,
     this.targetFps = 10,
+    this.enableLogging = true,
   });
 
   final double resizeRatio;
@@ -19,208 +21,46 @@ class Exporter {
   final int? maxGifHeight;
   final bool grayscale;
   final int targetFps;
+  final bool enableLogging;
 
-  final List<CompressedFrame> _frames = [];
-
-  int _maxWidth = 0;
-  int _maxHeight = 0;
+  // Используем RawRgbaExporter для обработки кадров
+  late final RawRgbaExporter _rawRgbaExporter = RawRgbaExporter(
+    resizeRatio: resizeRatio,
+    maxWidth: maxGifWidth,
+    maxHeight: maxGifHeight,
+    grayscale: grayscale,
+    enableLogging: enableLogging,
+  );
 
   /// === ЗАХВАТ КАДРА ===
   Future<void> onNewFrame(Frame frame) async {
-    try {
-      final originalWidth = frame.image.width;
-      final originalHeight = frame.image.height;
-
-      final byteData = await frame.image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
-
-      if (byteData == null) {
-        frame.image.dispose();
-        return;
-      }
-
-      final srcImg = image.Image.fromBytes(
-        width: originalWidth,
-        height: originalHeight,
-        bytes: byteData.buffer,
-        numChannels: 4,
-      );
-
-      int targetWidth = (originalWidth * resizeRatio).round();
-      int targetHeight = (originalHeight * resizeRatio).round();
-
-      if (maxGifWidth != null && targetWidth > maxGifWidth!) {
-        final scale = maxGifWidth! / targetWidth;
-        targetWidth = maxGifWidth!;
-        targetHeight = (targetHeight * scale).round();
-      }
-
-      if (maxGifHeight != null && targetHeight > maxGifHeight!) {
-        final scale = maxGifHeight! / targetHeight;
-        targetHeight = maxGifHeight!;
-        targetWidth = (targetWidth * scale).round();
-      }
-
-      image.Image processed = image.copyResize(
-        srcImg,
-        width: targetWidth,
-        height: targetHeight,
-        interpolation: image.Interpolation.average,
-      );
-
-      if (grayscale) {
-        processed = image.grayscale(processed);
-      }
-
-      // Оптимизация прозрачности: бинаризация альфа-канала
-      // GIF поддерживает только полностью прозрачные/непрозрачные пиксели
-      // Это уменьшает размер файла без потери визуального качества
-      processed = _optimizeAlphaChannel(processed);
-
-      // Используем neuralNet для лучшей палитры при том же количестве цветов
-      processed = image.quantize(
-        processed,
-        numberOfColors: grayscale ? 32 : 128,
-        method: image.QuantizeMethod.neuralNet,
-      );
-
-      _frames.add(
-        CompressedFrame(
-          frame.timeStamp,
-          processed,
-        ),
-      );
-
-      _maxWidth = _maxWidth < processed.width ? processed.width : _maxWidth;
-      _maxHeight =
-      _maxHeight < processed.height ? processed.height : _maxHeight;
-
-      frame.image.dispose();
-
-      debugPrint(
-        '[Exporter] ${originalWidth}x$originalHeight → '
-            '${processed.width}x${processed.height}'
-            '${grayscale ? ' (grayscale)' : ''}',
-      );
-    } catch (e) {
-      debugPrint('[Exporter] Error: $e');
-      frame.image.dispose();
-    }
+    await _rawRgbaExporter.onNewFrame(frame);
   }
 
   void clear() {
-    _frames.clear();
-    _maxWidth = 0;
-    _maxHeight = 0;
+    _rawRgbaExporter.clear();
   }
 
-  bool get hasFrames => _frames.isNotEmpty;
+  bool get hasFrames => _rawRgbaExporter.hasFrames;
 
   /// Количество захваченных кадров
-  int get frameCount => _frames.length;
+  int get frameCount => _rawRgbaExporter.frameCount;
 
   /// Временная метка первого кадра
-  Duration? get firstFrameTimeStamp => 
-      _frames.isNotEmpty ? _frames.first.timeStamp : null;
+  Duration? get firstFrameTimeStamp =>
+      _rawRgbaExporter.firstFrameTimeStamp;
 
   /// Временная метка последнего кадра
-  Duration? get lastFrameTimeStamp => 
-      _frames.isNotEmpty ? _frames.last.timeStamp : null;
+  Duration? get lastFrameTimeStamp =>
+      _rawRgbaExporter.lastFrameTimeStamp;
 
-  /// === ЭКСПОРТ GIF ===
-  Future<List<int>?> exportGif() async {
-    if (_frames.isEmpty) return null;
-
-    return compute(
-      _encodeGif,
-      GifData(
-        frames: _frames,
-        width: _maxWidth,
-        height: _maxHeight,
-        frameDurationMs: (1000 / targetFps).round(),
-      ),
-    );
+  /// === ЭКСПОРТ В БИНАРНЫЙ ФОРМАТ ===
+  /// 
+  /// Возвращает бинарные данные в формате raw RGBA
+  /// Формат: см. RawRgbaExporter.exportBinary()
+  Future<Uint8List?> exportGif() async {
+    // Для обратной совместимости метод называется exportGif,
+    // но теперь возвращает бинарный формат raw RGBA
+    return await _rawRgbaExporter.exportBinary();
   }
-
-  static List<int> _encodeGif(GifData data) {
-    final gif = image.Image.empty();
-    gif.loopCount = 0;
-
-    for (final frame in data.frames) {
-      image.Image img = frame.img;
-
-      if (img.width != data.width || img.height != data.height) {
-        img = image.copyExpandCanvas(
-          img,
-          newWidth: data.width,
-          newHeight: data.height,
-          toImage: image.Image(
-            width: data.width,
-            height: data.height,
-            numChannels: 4,
-          ),
-        );
-      }
-
-      img.frameDuration = data.frameDurationMs;
-      gif.frames.add(img);
-    }
-
-    // Используем оптимизированные параметры для минимального размера
-    // без потери визуального качества
-    return image.encodeGif(
-      gif,
-      samplingFactor: 30,  // Более агрессивная квантовка для меньшего размера
-      dither: image.DitherKernel.none,  // Отключение dithering уменьшает размер
-      ditherSerpentine: false,  // Отключение для уменьшения размера
-    );
-  }
-
-  /// Оптимизирует альфа-канал: конвертирует полупрозрачные пиксели
-  /// в полностью прозрачные или непрозрачные для уменьшения размера GIF
-  /// GIF поддерживает только бинарную прозрачность, поэтому это не влияет на качество
-  static image.Image _optimizeAlphaChannel(image.Image img) {
-    const alphaThreshold = 128; // Порог для бинаризации
-
-    for (int y = 0; y < img.height; y++) {
-      for (int x = 0; x < img.width; x++) {
-        final pixel = img.getPixel(x, y);
-        final alpha = pixel.a;
-
-        if (alpha < alphaThreshold) {
-          // Полностью прозрачный пиксель
-          img.setPixelRgba(x, y, 0, 0, 0, 0);
-        } else {
-          // Полностью непрозрачный пиксель
-          img.setPixelRgba(x, y, pixel.r, pixel.g, pixel.b, 255);
-        }
-      }
-    }
-
-    return img;
-  }
-}
-
-/// === ДАННЫЕ ===
-
-class CompressedFrame {
-  CompressedFrame(this.timeStamp, this.img);
-
-  final Duration timeStamp;
-  final image.Image img;
-}
-
-class GifData {
-  GifData({
-    required this.frames,
-    required this.width,
-    required this.height,
-    required this.frameDurationMs,
-  });
-
-  final List<CompressedFrame> frames;
-  final int width;
-  final int height;
-  final int frameDurationMs;
 }

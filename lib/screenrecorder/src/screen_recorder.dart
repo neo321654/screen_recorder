@@ -117,7 +117,6 @@ class ScreenRecorderController {
   }
 
   void postFrameCallback(Duration timestamp) async {
-    print('postFrameCallback');
     if (_record == false) {
       return;
     }
@@ -126,6 +125,7 @@ class ScreenRecorderController {
       skipped = skipped - 1;
       // add a new PostFrameCallback to know about the next frame
       _binding.addPostFrameCallback(postFrameCallback);
+
       // but we do nothing, because we skip this frame
       return;
     }

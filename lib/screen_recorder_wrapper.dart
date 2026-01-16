@@ -157,17 +157,17 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
 
   Future<void> _saveRecording() async {
     try {
-      debugPrint('[ScreenRecorderWrapper] Exporting GIF...');
-      final gif = await _controller.exporter.exportGif();
+      debugPrint('[ScreenRecorderWrapper] Exporting binary RGBA...');
+      final binaryData = await _controller.exporter.exportGif();
       
-      if (gif == null || gif.isEmpty) {
+      if (binaryData == null || binaryData.isEmpty) {
         final error = 'Нет данных для сохранения';
         debugPrint('[ScreenRecorderWrapper] ERROR: $error');
         widget.onError?.call(error);
         return;
       }
       
-      debugPrint('[ScreenRecorderWrapper] GIF exported, size: ${gif.length} bytes');
+      debugPrint('[ScreenRecorderWrapper] Binary RGBA exported, size: ${binaryData.length} bytes');
 
       // Получаем директорию для сохранения
       final directory = await _getSaveDirectory();
@@ -180,14 +180,14 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
 
       // Создаем имя файла с временной меткой
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-      final fileName = 'screen_recording_$timestamp.gif';
+      final fileName = 'screen_recording_$timestamp.bin';
       final filePath = path.join(directory.path, fileName);
       
       debugPrint('[ScreenRecorderWrapper] Saving to: $filePath');
 
       // Сохраняем файл
       final file = File(filePath);
-      await file.writeAsBytes(gif);
+      await file.writeAsBytes(binaryData);
 
       // Получаем размер файла
       final fileSizeInBytes = await file.length();
