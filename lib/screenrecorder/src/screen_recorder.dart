@@ -117,6 +117,7 @@ class ScreenRecorderController {
   }
 
   void postFrameCallback(Duration timestamp) async {
+    print('postFrameCallback');
     if (_record == false) {
       return;
     }

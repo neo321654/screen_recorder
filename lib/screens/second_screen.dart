@@ -110,10 +110,10 @@ class SecondScreen extends StatelessWidget {
           ),
             ),
           ),
-          const ScreenTimer(
-            screenName: 'Вторая вкладка',
-            position: TimerPosition.topRight,
-          ),
+          // const ScreenTimer(
+          //   screenName: 'Вторая вкладка',
+          //   position: TimerPosition.topRight,
+          // ),
         ],
       ),
     );
