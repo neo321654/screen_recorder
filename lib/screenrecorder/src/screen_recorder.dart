@@ -136,7 +136,7 @@ class ScreenRecorderController {
     try {
       // Измеряем время захвата кадра
       final captureStart = DateTime.now();
-      final image = capture();
+      final image = await capture();
       final captureTime = DateTime.now().difference(captureStart);
       _totalCaptureTime += captureTime;
       _captureTimes.add(captureTime);
@@ -173,11 +173,16 @@ class ScreenRecorderController {
 
       // Измеряем время сохранения кадра
       final saveStart = DateTime.now();
-      _exporter.onNewFrame(Frame(timestamp, image));
+      await _exporter.onNewFrame(Frame(timestamp, image));
       final saveTime = DateTime.now().difference(saveStart);
       _totalSaveTime += saveTime;
       _saveTimes.add(saveTime);
       _framesSaved++;
+
+      debugPrint(
+        '[ScreenRecorder] Кадр ${_framesSaved} сохранен в экспортер '
+        '(всего кадров в экспортере: ${_exporter.frameCount})',
+      );
 
       if (frameComparisonMethod != FrameComparisonMethod.none) {
         debugPrint(
@@ -528,12 +533,14 @@ class ScreenRecorderController {
     );
   }
 
-  ui.Image? capture() {
+  Future<ui.Image?> capture() {
     final renderObject =
         _containerKey.currentContext!.findRenderObject()
             as RenderRepaintBoundary;
+    // renderObject.toImage()
 
-    return renderObject.toImageSync(pixelRatio: pixelRatio);
+    // return renderObject.toImageSync(pixelRatio: pixelRatio);
+    return renderObject.toImage(pixelRatio: pixelRatio);
   }
 }
 

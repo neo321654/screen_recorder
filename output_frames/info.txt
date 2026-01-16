@@ -1,29 +1,48 @@
 Binary RGBA Decode Info
 ==================================================
 
-Source file: 1.bin
-Format version: 1
-Total frames: 18
+Source file: 2.bin
+Format version: 2
+Total frames: 37
 Max dimensions: 247x549
 Grayscale: False
-Decoded frames: 18
+Decoded frames: 37
 
 Frames:
-  1. frame_00001_t2783ms.png (timestamp: 2783ms)
-  2. frame_00002_t4150ms.png (timestamp: 4150ms)
-  3. frame_00003_t4600ms.png (timestamp: 4600ms)
-  4. frame_00004_t5383ms.png (timestamp: 5383ms)
-  5. frame_00005_t5683ms.png (timestamp: 5683ms)
-  6. frame_00006_t6100ms.png (timestamp: 6100ms)
-  7. frame_00007_t6466ms.png (timestamp: 6466ms)
-  8. frame_00008_t7100ms.png (timestamp: 7100ms)
-  9. frame_00009_t7433ms.png (timestamp: 7433ms)
-  10. frame_00010_t7950ms.png (timestamp: 7950ms)
-  11. frame_00011_t8500ms.png (timestamp: 8500ms)
-  12. frame_00012_t8833ms.png (timestamp: 8833ms)
-  13. frame_00013_t9150ms.png (timestamp: 9150ms)
-  14. frame_00014_t9466ms.png (timestamp: 9466ms)
-  15. frame_00015_t9783ms.png (timestamp: 9783ms)
-  16. frame_00016_t10100ms.png (timestamp: 10100ms)
-  17. frame_00017_t10416ms.png (timestamp: 10416ms)
-  18. frame_00018_t10733ms.png (timestamp: 10733ms)
+  1. frame_00001_t28866ms.png (timestamp: 28866ms)
+  2. frame_00002_t29299ms.png (timestamp: 29299ms)
+  3. frame_00003_t29599ms.png (timestamp: 29599ms)
+  4. frame_00004_t29899ms.png (timestamp: 29899ms)
+  5. frame_00005_t30199ms.png (timestamp: 30199ms)
+  6. frame_00006_t30499ms.png (timestamp: 30499ms)
+  7. frame_00007_t30799ms.png (timestamp: 30799ms)
+  8. frame_00008_t31099ms.png (timestamp: 31099ms)
+  9. frame_00009_t31399ms.png (timestamp: 31399ms)
+  10. frame_00010_t31699ms.png (timestamp: 31699ms)
+  11. frame_00011_t31999ms.png (timestamp: 31999ms)
+  12. frame_00012_t32333ms.png (timestamp: 32333ms)
+  13. frame_00013_t32633ms.png (timestamp: 32633ms)
+  14. frame_00014_t32933ms.png (timestamp: 32933ms)
+  15. frame_00015_t33233ms.png (timestamp: 33233ms)
+  16. frame_00016_t33533ms.png (timestamp: 33533ms)
+  17. frame_00017_t33833ms.png (timestamp: 33833ms)
+  18. frame_00018_t34133ms.png (timestamp: 34133ms)
+  19. frame_00019_t34433ms.png (timestamp: 34433ms)
+  20. frame_00020_t34749ms.png (timestamp: 34749ms)
+  21. frame_00021_t35049ms.png (timestamp: 35049ms)
+  22. frame_00022_t35349ms.png (timestamp: 35349ms)
+  23. frame_00023_t35649ms.png (timestamp: 35649ms)
+  24. frame_00024_t35949ms.png (timestamp: 35949ms)
+  25. frame_00025_t36249ms.png (timestamp: 36249ms)
+  26. frame_00026_t36549ms.png (timestamp: 36549ms)
+  27. frame_00027_t36849ms.png (timestamp: 36849ms)
+  28. frame_00028_t37149ms.png (timestamp: 37149ms)
+  29. frame_00029_t37449ms.png (timestamp: 37449ms)
+  30. frame_00030_t37749ms.png (timestamp: 37749ms)
+  31. frame_00031_t38066ms.png (timestamp: 38066ms)
+  32. frame_00032_t38383ms.png (timestamp: 38383ms)
+  33. frame_00033_t38683ms.png (timestamp: 38683ms)
+  34. frame_00034_t38983ms.png (timestamp: 38983ms)
+  35. frame_00035_t39283ms.png (timestamp: 39283ms)
+  36. frame_00036_t39616ms.png (timestamp: 39616ms)
+  37. frame_00037_t39949ms.png (timestamp: 39949ms)

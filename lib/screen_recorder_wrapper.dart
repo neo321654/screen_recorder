@@ -135,10 +135,15 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
       return;
     }
 
-    debugPrint('[ScreenRecorderWrapper] Stopping recording...');
-    debugPrint('[ScreenRecorderWrapper] Frames captured: ${_controller.exporter.frameCount}');
+    debugPrint('[ScreenRecorderWrapper] ========== ОСТАНОВКА ЗАПИСИ ==========');
+    debugPrint('[ScreenRecorderWrapper] Остановка записи...');
+    debugPrint('[ScreenRecorderWrapper] Кадров захвачено: ${_controller.exporter.frameCount}');
+    debugPrint('[ScreenRecorderWrapper] Есть кадры: ${_controller.exporter.hasFrames}');
     
     _controller.stop();
+    
+    debugPrint('[ScreenRecorderWrapper] Контроллер остановлен');
+    debugPrint('[ScreenRecorderWrapper] Кадров после остановки: ${_controller.exporter.frameCount}');
     
     setState(() {
       _recording = false;
@@ -157,12 +162,26 @@ class _ScreenRecorderWrapperState extends State<ScreenRecorderWrapper> {
 
   Future<void> _saveRecording() async {
     try {
-      debugPrint('[ScreenRecorderWrapper] Exporting binary RGBA...');
+      debugPrint('[ScreenRecorderWrapper] ========== ЭКСПОРТ ==========');
+      debugPrint('[ScreenRecorderWrapper] Кадров в экспортере: ${_controller.exporter.frameCount}');
+      debugPrint('[ScreenRecorderWrapper] Есть кадры: ${_controller.exporter.hasFrames}');
+      
+      if (!_controller.exporter.hasFrames) {
+        final error = 'Нет кадров для сохранения. Возможно, запись была слишком короткой или кадры не захватывались.';
+        debugPrint('[ScreenRecorderWrapper] ERROR: $error');
+        widget.onError?.call(error);
+        return;
+      }
+      
+      debugPrint('[ScreenRecorderWrapper] Начало экспорта бинарных данных...');
       final binaryData = await _controller.exporter.exportGif();
       
+      debugPrint('[ScreenRecorderWrapper] Экспорт завершен. Размер данных: ${binaryData?.length ?? 0} байт');
+      
       if (binaryData == null || binaryData.isEmpty) {
-        final error = 'Нет данных для сохранения';
+        final error = 'Экспорт вернул пустые данные';
         debugPrint('[ScreenRecorderWrapper] ERROR: $error');
+        debugPrint('[ScreenRecorderWrapper] Кадров было: ${_controller.exporter.frameCount}');
         widget.onError?.call(error);
         return;
       }

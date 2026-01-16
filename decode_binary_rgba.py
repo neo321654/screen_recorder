@@ -3,15 +3,16 @@
 Скрипт для декодирования бинарного формата raw RGBA из Flutter.
 
 Формат бинарника:
-[Header - 18 bytes]
+[Header - 19 bytes для версии 2+]
 - Magic number (4 bytes): "RGBA"
-- Version (1 byte): 1
+- Version (1 byte): 2 (версия 2+ поддерживает сжатие)
+- Compression flag (1 byte): 0 или 1 (gzip сжатие)
 - Frame count (4 bytes, uint32, little-endian)
 - Max width (4 bytes, uint32, little-endian)
 - Max height (4 bytes, uint32, little-endian)
 - Grayscale flag (1 byte): 0 или 1
 
-[Frames]
+[Frames] (может быть сжато gzip)
 Для каждого кадра:
 - Timestamp milliseconds (8 bytes, int64, little-endian)
 - Width (4 bytes, uint32, little-endian)
@@ -34,6 +35,7 @@
 
 import sys
 import argparse
+import gzip
 from pathlib import Path
 from PIL import Image
 import numpy as np
@@ -78,8 +80,8 @@ def decode_binary_rgba(input_path: str, output_directory: str = None):
         with open(input_file, 'rb') as f:
             binary_data = f.read()
 
-    if len(binary_data) < 18:
-        print(f"[Decoder] ОШИБКА: Файл слишком мал (минимум 18 байт для заголовка)")
+    if len(binary_data) < 19:
+        print(f"[Decoder] ОШИБКА: Файл слишком мал (минимум 19 байт для заголовка)")
         sys.exit(1)
 
     # === ПАРСИНГ ЗАГОЛОВКА ===
@@ -97,21 +99,50 @@ def decode_binary_rgba(input_path: str, output_directory: str = None):
     version = binary_data[4]
     print(f"[Decoder] Версия формата: {version}")
 
+    # Compression flag (версия 2+)
+    is_compressed = False
+    header_offset = 5
+    if version >= 2:
+        is_compressed = binary_data[5] == 1
+        header_offset = 6
+        print(f"[Decoder] Сжатие: {'Да (gzip)' if is_compressed else 'Нет'}")
+    else:
+        print("[Decoder] Старая версия формата (без поддержки сжатия)")
+
     # Frame count
-    frame_count = read_uint32(binary_data, 5)
+    frame_count = read_uint32(binary_data, header_offset)
     print(f"[Decoder] Количество кадров: {frame_count}")
 
     # Max width
-    max_width = read_uint32(binary_data, 9)
+    max_width = read_uint32(binary_data, header_offset + 4)
     print(f"[Decoder] Максимальная ширина: {max_width}")
 
     # Max height
-    max_height = read_uint32(binary_data, 13)
+    max_height = read_uint32(binary_data, header_offset + 8)
     print(f"[Decoder] Максимальная высота: {max_height}")
 
     # Grayscale flag
-    is_grayscale = binary_data[17] == 1
+    grayscale_offset = header_offset + 12
+    is_grayscale = binary_data[grayscale_offset] == 1
     print(f"[Decoder] Grayscale: {'Да' if is_grayscale else 'Нет'}")
+
+    # === ДЕКОМПРЕССИЯ ===
+    frames_data_start = grayscale_offset + 1
+    if is_compressed:
+        print("\n[Decoder] Декомпрессия данных...")
+        compressed_data = binary_data[frames_data_start:]
+        try:
+            frames_data = gzip.decompress(compressed_data)
+            print(f"[Decoder] ✓ Декомпрессия завершена")
+            print(f"[Decoder] Размер сжатых данных: {len(compressed_data)} байт")
+            print(f"[Decoder] Размер после декомпрессии: {len(frames_data)} байт")
+            compression_ratio = (1 - len(compressed_data) / len(frames_data)) * 100
+            print(f"[Decoder] Коэффициент сжатия: {compression_ratio:.1f}%")
+        except Exception as e:
+            print(f"[Decoder] ОШИБКА при декомпрессии: {e}")
+            sys.exit(1)
+    else:
+        frames_data = binary_data[frames_data_start:]
 
     # === ПАРСИНГ КАДРОВ ===
     print(f"\n[Decoder] Начало парсинга {frame_count} кадров...")
@@ -130,34 +161,34 @@ def decode_binary_rgba(input_path: str, output_directory: str = None):
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[Decoder] Директория для сохранения: {output_dir.absolute()}")
 
-    offset = 18  # Начинаем после заголовка
+    offset = 0  # Начинаем с начала frames_data
     saved_files = []
 
     for frame_index in range(frame_count):
-        if offset + 16 > len(binary_data):
+        if offset + 16 > len(frames_data):
             print(f"[Decoder] ПРЕДУПРЕЖДЕНИЕ: Недостаточно данных для кадра {frame_index + 1}")
             break
 
         # Читаем метаданные кадра
-        timestamp_ms = read_int64(binary_data, offset)
+        timestamp_ms = read_int64(frames_data, offset)
         offset += 8
 
-        width = read_uint32(binary_data, offset)
+        width = read_uint32(frames_data, offset)
         offset += 4
 
-        height = read_uint32(binary_data, offset)
+        height = read_uint32(frames_data, offset)
         offset += 4
 
         # Вычисляем размер пиксельных данных
         pixel_data_size = width * height * 4
 
-        if offset + pixel_data_size > len(binary_data):
+        if offset + pixel_data_size > len(frames_data):
             print(f"[Decoder] ОШИБКА: Недостаточно данных для кадра {frame_index + 1}")
-            print(f"[Decoder] Нужно: {pixel_data_size} байт, доступно: {len(binary_data) - offset} байт")
+            print(f"[Decoder] Нужно: {pixel_data_size} байт, доступно: {len(frames_data) - offset} байт")
             break
 
         # Читаем пиксельные данные
-        pixel_data = binary_data[offset:offset + pixel_data_size]
+        pixel_data = frames_data[offset:offset + pixel_data_size]
         offset += pixel_data_size
 
         # Конвертируем в numpy array

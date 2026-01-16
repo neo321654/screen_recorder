@@ -1,5 +1,6 @@
-import 'dart:ui' as ui show ImageByteFormat;
+import 'dart:ui' as ui;
 import 'dart:typed_data';
+import 'dart:io' show gzip;
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as image;
@@ -44,6 +45,7 @@ class RawRgbaExporter {
     this.maxHeight = 640,
     this.grayscale = false,
     this.enableLogging = true,
+    this.useCompression = true,
   });
 
   final double resizeRatio;
@@ -51,6 +53,7 @@ class RawRgbaExporter {
   final int? maxHeight;
   final bool grayscale;
   final bool enableLogging;
+  final bool useCompression;
 
   final List<RawRgbaFrame> _frames = [];
 
@@ -71,9 +74,11 @@ class RawRgbaExporter {
 
       // Получаем raw RGBA байты
       final byteDataStart = DateTime.now();
+
       final byteData = await frame.image.toByteData(
         format: ui.ImageByteFormat.rawRgba,
       );
+
 
       if (byteData == null) {
         debugPrint('[RawRgbaExporter] ОШИБКА: toByteData вернул null');
@@ -253,87 +258,106 @@ class RawRgbaExporter {
   /// Формат бинарника:
   /// [Header]
   /// - Magic number (4 bytes): "RGBA"
-  /// - Version (1 byte): 1
+  /// - Version (1 byte): 2 (версия 2 поддерживает сжатие)
+  /// - Compression flag (1 byte): 0 или 1 (сжатие gzip)
   /// - Frame count (4 bytes, uint32)
   /// - Max width (4 bytes, uint32)
   /// - Max height (4 bytes, uint32)
   /// - Grayscale flag (1 byte): 0 или 1
   /// 
-  /// [Frames]
+  /// [Frames] (несжатые или сжатые gzip)
   /// Для каждого кадра:
   /// - Timestamp milliseconds (8 bytes, int64)
   /// - Width (4 bytes, uint32)
   /// - Height (4 bytes, uint32)
   /// - Pixel data (width * height * 4 bytes, raw RGBA)
+  /// 
+  /// Если compression flag = 1, весь блок [Frames] сжимается gzip
   Future<Uint8List?> exportBinary() async {
+    debugPrint('[RawRgbaExporter] ========== EXPORT BINARY ==========');
+    debugPrint('[RawRgbaExporter] Количество кадров в памяти: ${_frames.length}');
+    
     if (_frames.isEmpty) {
-      debugPrint('[RawRgbaExporter] Нет кадров для экспорта');
+      debugPrint('[RawRgbaExporter] ОШИБКА: Нет кадров для экспорта!');
+      debugPrint('[RawRgbaExporter] Возможные причины:');
+      debugPrint('[RawRgbaExporter]   1. Кадры не были захвачены');
+      debugPrint('[RawRgbaExporter]   2. Все кадры были пропущены из-за сравнения');
+      debugPrint('[RawRgbaExporter]   3. Ошибка при обработке кадров');
       return null;
     }
 
-      if (enableLogging) {
-        debugPrint('[RawRgbaExporter] Начало экспорта в бинарный формат');
-        debugPrint('[RawRgbaExporter] Кадров: ${_frames.length}');
-        debugPrint('[RawRgbaExporter] Макс. размер: ${_maxFrameWidth}x$_maxFrameHeight');
-      }
+    if (enableLogging) {
+      debugPrint('[RawRgbaExporter] Начало экспорта в бинарный формат');
+      debugPrint('[RawRgbaExporter] Кадров: ${_frames.length}');
+      debugPrint('[RawRgbaExporter] Макс. размер: ${_maxFrameWidth}x$_maxFrameHeight');
+      debugPrint('[RawRgbaExporter] Сжатие: ${useCompression ? "включено" : "выключено"}');
+    }
 
     try {
       final exportStart = DateTime.now();
 
-      // Вычисляем размер бинарника
-      int totalSize = 4 + 1 + 4 + 4 + 4 + 1; // Header
+      // Вычисляем размер несжатого бинарника
+      int uncompressedSize = 4 + 1 + 1 + 4 + 4 + 4 + 1; // Header (19 bytes)
       for (final frame in _frames) {
-        totalSize += 8 + 4 + 4 + frame.pixels.length; // Frame data
+        uncompressedSize += 8 + 4 + 4 + frame.pixels.length; // Frame data
       }
 
       if (enableLogging) {
         debugPrint(
-          '[RawRgbaExporter] Размер бинарника: ${(totalSize / 1024).toStringAsFixed(2)} KB',
+          '[RawRgbaExporter] Размер несжатого бинарника: '
+          '${(uncompressedSize / 1024).toStringAsFixed(2)} KB',
         );
       }
 
-      final buffer = BytesBuilder();
-
       // === HEADER ===
+      final headerBuffer = BytesBuilder();
+      
       // Magic number: "RGBA"
-      buffer.addByte(0x52); // 'R'
-      buffer.addByte(0x47); // 'G'
-      buffer.addByte(0x42); // 'B'
-      buffer.addByte(0x41); // 'A'
+      headerBuffer.addByte(0x52); // 'R'
+      headerBuffer.addByte(0x47); // 'G'
+      headerBuffer.addByte(0x42); // 'B'
+      headerBuffer.addByte(0x41); // 'A'
 
-      // Version: 1
-      buffer.addByte(1);
+      // Version: 2 (поддержка сжатия)
+      headerBuffer.addByte(2);
+
+      // Compression flag (1 byte)
+      headerBuffer.addByte(useCompression ? 1 : 0);
 
       // Frame count (uint32)
-      buffer.add(_uint32ToBytes(_frames.length));
+      headerBuffer.add(_uint32ToBytes(_frames.length));
 
       // Max width (uint32)
-      buffer.add(_uint32ToBytes(_maxFrameWidth));
+      headerBuffer.add(_uint32ToBytes(_maxFrameWidth));
 
       // Max height (uint32)
-      buffer.add(_uint32ToBytes(_maxFrameHeight));
+      headerBuffer.add(_uint32ToBytes(_maxFrameHeight));
 
       // Grayscale flag (1 byte)
-      buffer.addByte(grayscale ? 1 : 0);
+      headerBuffer.addByte(grayscale ? 1 : 0);
 
       if (enableLogging) {
-        debugPrint('[RawRgbaExporter] Заголовок записан: 18 байт');
+        debugPrint('[RawRgbaExporter] Заголовок записан: 19 байт');
+        debugPrint(
+          '[RawRgbaExporter] Сжатие: ${useCompression ? "включено" : "выключено"}',
+        );
       }
 
-      // === FRAMES ===
+      // === FRAMES (несжатые данные) ===
+      final framesBuffer = BytesBuilder();
       int frameIndex = 0;
       for (final frame in _frames) {
         // Timestamp (int64, milliseconds)
-        buffer.add(_int64ToBytes(frame.timeStamp.inMilliseconds));
+        framesBuffer.add(_int64ToBytes(frame.timeStamp.inMilliseconds));
 
         // Width (uint32)
-        buffer.add(_uint32ToBytes(frame.width));
+        framesBuffer.add(_uint32ToBytes(frame.width));
 
         // Height (uint32)
-        buffer.add(_uint32ToBytes(frame.height));
+        framesBuffer.add(_uint32ToBytes(frame.height));
 
         // Pixel data (raw RGBA)
-        buffer.add(frame.pixels);
+        framesBuffer.add(frame.pixels);
 
         frameIndex++;
         if (enableLogging && frameIndex % 10 == 0) {
@@ -343,21 +367,62 @@ class RawRgbaExporter {
         }
       }
 
-      final result = buffer.takeBytes();
+      final framesData = framesBuffer.takeBytes();
+
+      // === СЖАТИЕ ===
+      Uint8List compressedFrames;
+      if (useCompression) {
+        final compressStart = DateTime.now();
+        compressedFrames = gzip.encode(framesData) as Uint8List;
+        final compressTime = DateTime.now().difference(compressStart);
+        
+        if (enableLogging) {
+          final compressionRatio = (1 - compressedFrames.length / framesData.length) * 100;
+          debugPrint(
+            '[RawRgbaExporter] Сжатие завершено за ${compressTime.inMilliseconds}ms',
+          );
+          debugPrint(
+            '[RawRgbaExporter] Размер до сжатия: ${framesData.length} байт '
+            '(${(framesData.length / 1024).toStringAsFixed(2)} KB)',
+          );
+          debugPrint(
+            '[RawRgbaExporter] Размер после сжатия: ${compressedFrames.length} байт '
+            '(${(compressedFrames.length / 1024).toStringAsFixed(2)} KB)',
+          );
+          debugPrint(
+            '[RawRgbaExporter] Коэффициент сжатия: ${compressionRatio.toStringAsFixed(1)}%',
+          );
+        }
+      } else {
+        compressedFrames = framesData;
+      }
+
+      // === ФИНАЛЬНЫЙ РЕЗУЛЬТАТ ===
+      final headerBytes = headerBuffer.takeBytes();
+      final result = Uint8List(headerBytes.length + compressedFrames.length);
+      result.setRange(0, headerBytes.length, headerBytes);
+      result.setRange(headerBytes.length, result.length, compressedFrames);
+
       final exportTime = DateTime.now().difference(exportStart);
 
-      if (enableLogging) {
+      debugPrint(
+        '[RawRgbaExporter] Экспорт завершен за ${exportTime.inMilliseconds}ms',
+      );
+      debugPrint(
+        '[RawRgbaExporter] Размер бинарника: ${result.length} байт '
+        '(${(result.length / 1024).toStringAsFixed(2)} KB)',
+      );
+      if (useCompression) {
+        final totalCompressionRatio = (1 - result.length / uncompressedSize) * 100;
         debugPrint(
-          '[RawRgbaExporter] Экспорт завершен за ${exportTime.inMilliseconds}ms',
-        );
-        debugPrint(
-          '[RawRgbaExporter] Размер бинарника: ${result.length} байт '
-          '(${(result.length / 1024).toStringAsFixed(2)} KB)',
-        );
-        debugPrint(
-          '[RawRgbaExporter] Бинарник готов для декодирования',
+          '[RawRgbaExporter] Общий коэффициент сжатия: '
+          '${totalCompressionRatio.toStringAsFixed(1)}%',
         );
       }
+      debugPrint(
+        '[RawRgbaExporter] Бинарник готов для декодирования',
+      );
+      debugPrint('[RawRgbaExporter] ====================================');
 
       return result;
     } catch (e, stackTrace) {

@@ -30,6 +30,7 @@ class Exporter {
     maxHeight: maxGifHeight,
     grayscale: grayscale,
     enableLogging: enableLogging,
+    useCompression: true, // Включаем сжатие по умолчанию
   );
 
   /// === ЗАХВАТ КАДРА ===
