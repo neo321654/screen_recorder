@@ -17,15 +17,17 @@ class ScreenRecorderController {
     int? maxGifHeight,
     bool? grayscale,
     int? targetFps,
-  })  : _containerKey = GlobalKey(),
-        _binding = binding ?? SchedulerBinding.instance,
-        _exporter = exporter ?? Exporter(
-          resizeRatio: resizeRatio ?? 0.3,
-          maxGifWidth: maxGifWidth,
-          maxGifHeight: maxGifHeight,
-          grayscale: grayscale ?? false,
-          targetFps: targetFps ?? 10,
-        );
+  }) : _containerKey = GlobalKey(),
+       _binding = binding ?? SchedulerBinding.instance,
+       _exporter =
+           exporter ??
+           Exporter(
+             resizeRatio: resizeRatio ?? 0.3,
+             maxGifWidth: maxGifWidth,
+             maxGifHeight: maxGifHeight,
+             grayscale: grayscale ?? false,
+             targetFps: targetFps ?? 10,
+           );
 
   final GlobalKey _containerKey;
   final SchedulerBinding _binding;
@@ -35,8 +37,8 @@ class ScreenRecorderController {
 
   /// The pixelRatio describes the scale between the logical pixels and the size
   /// of the output image. Specifying 1.0 will give you a 1:1 mapping between
-  /// logical pixels and the output pixels in the image. 
-  /// 
+  /// logical pixels and the output pixels in the image.
+  ///
   /// По умолчанию 0.3 для оптимизации размера файла (меньше значение = меньше размер).
   /// Рекомендуемые значения: 0.3-0.5 для минимального размера, 0.5-0.7 для баланса.
   ///
@@ -97,8 +99,9 @@ class ScreenRecorderController {
   }
 
   ui.Image? capture() {
-    final renderObject = _containerKey.currentContext!.findRenderObject()
-        as RenderRepaintBoundary;
+    final renderObject =
+        _containerKey.currentContext!.findRenderObject()
+            as RenderRepaintBoundary;
 
     return renderObject.toImageSync(pixelRatio: pixelRatio);
   }
